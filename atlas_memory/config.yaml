@@ -1,5 +1,5 @@
 name: "Atlas Memory"
-version: "1.1.0"
+version: "1.1.1"
 slug: "atlas_memory"
 description: "Persistent memory service for Atlas"
 url: "https://github.com/countryboy1985-atlas/atlas-memory"
