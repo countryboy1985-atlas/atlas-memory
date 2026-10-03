@@ -7,7 +7,7 @@ from mcp.server.fastmcp import FastMCP
 DB_DIR = "/data"
 DB = os.path.join(DB_DIR, "atlas.db")
 
-mcp = FastMCP("Atlas Memory")
+mcp = FastMCP("Atlas Memory", host="0.0.0.0", port=8765)
 
 
 def connect_db():
