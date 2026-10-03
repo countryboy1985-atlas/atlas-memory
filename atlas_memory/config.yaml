@@ -1,0 +1,14 @@
+name: "Atlas Memory"
+version: "1.0.0"
+slug: "atlas_memory"
+description: "Persistent memory service for Atlas"
+url: "https://github.com/countryboy1985-atlas/atlas-memory"
+arch:
+  - aarch64
+startup: services
+boot: auto
+init: false
+ports:
+  8765/tcp: 8765
+ports_description:
+  8765/tcp: "Atlas Memory API"
