@@ -1,16 +1,17 @@
-from flask import Flask, request, jsonify
+import asyncio
 import sqlite3
 import os
 
-app = Flask(__name__)
+from mcp.server.fastmcp import FastMCP
 
 DB_DIR = "/data"
 DB = os.path.join(DB_DIR, "atlas.db")
 
+mcp = FastMCP("Atlas Memory")
+
 
 def connect_db():
     os.makedirs(DB_DIR, exist_ok=True)
-
     db = sqlite3.connect(DB)
     db.execute("""
         CREATE TABLE IF NOT EXISTS memories (
@@ -24,63 +25,59 @@ def connect_db():
     return db
 
 
-@app.get("/health")
-def health():
-    return jsonify({
-        "status": "ok",
-        "service": "Atlas Memory"
-    })
-
-
-@app.post("/remember")
-def remember():
-    data = request.get_json(silent=True) or {}
-
-    category = data.get("category", "general")
-    content = data.get("content", "").strip()
+@mcp.tool()
+def remember(content: str, category: str = "general") -> str:
+    """Save useful information to Atlas's persistent memory."""
+    content = content.strip()
+    category = category.strip() or "general"
 
     if not content:
-        return jsonify({"error": "content is required"}), 400
+        return "Nothing was provided to remember."
 
     db = connect_db()
     cursor = db.execute(
         "INSERT INTO memories (category, content) VALUES (?, ?)",
-        (category, content)
+        (category, content),
     )
     db.commit()
     memory_id = cursor.lastrowid
     db.close()
 
-    return jsonify({
-        "status": "remembered",
-        "id": memory_id
-    })
+    return f"Memory {memory_id} saved."
 
 
-@app.get("/memories")
-def memories():
+@mcp.tool()
+def recall(query: str, limit: int = 10) -> str:
+    """Search Atlas's persistent memories for relevant information."""
+    query = query.strip()
+
+    if not query:
+        return "A search query is required."
+
+    limit = max(1, min(limit, 20))
+
     db = connect_db()
-
-    rows = db.execute("""
+    rows = db.execute(
+        """
         SELECT id, category, content, created_at
         FROM memories
+        WHERE content LIKE ? OR category LIKE ?
         ORDER BY id DESC
-        LIMIT 50
-    """).fetchall()
-
+        LIMIT ?
+        """,
+        (f"%{query}%", f"%{query}%", limit),
+    ).fetchall()
     db.close()
 
-    return jsonify([
-        {
-            "id": row[0],
-            "category": row[1],
-            "content": row[2],
-            "created_at": row[3]
-        }
+    if not rows:
+        return "No matching memories found."
+
+    return "\n".join(
+        f"[{row[0]}] ({row[1]}) {row[2]} — {row[3]}"
         for row in rows
-    ])
+    )
 
 
 if __name__ == "__main__":
     connect_db().close()
-    app.run(host="0.0.0.0", port=8765)
+    mcp.run(transport="sse")
